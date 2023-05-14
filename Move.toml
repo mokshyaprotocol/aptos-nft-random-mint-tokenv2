@@ -1,0 +1,14 @@
+[package]
+name = 'candymachine'
+version = '1.0.0'
+[addresses]
+std = "0x1"
+aptos_std = "0x1"
+aptos_framework = "0x1"
+candymachine = "_" 
+aptos_token_objects = "0x4"
+[dependencies]
+AptosFramework = {git = 'https://github.com/aptos-labs/aptos-core.git',rev='main',subdir = 'aptos-move/framework/aptos-framework'}
+AptosTokenObjects = {git = 'https://github.com/aptos-labs/aptos-core.git',rev='main',subdir = 'aptos-move/framework/aptos-token-objects'}
+AptosStdlib = {git = 'https://github.com/aptos-labs/aptos-core.git',rev='main',subdir = 'aptos-move/framework/aptos-stdlib'}
+DataStructure = {git = 'https://github.com/aptos-labs/aptos-core.git',rev='main',subdir = 'aptos-move/move-examples/data_structures'}
