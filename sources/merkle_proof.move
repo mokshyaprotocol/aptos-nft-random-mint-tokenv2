@@ -1,4 +1,4 @@
-module candymachine::merkle_proof{
+module candymachinev2::merkle_proof{
     use std::vector;
     use aptos_std::aptos_hash;
 

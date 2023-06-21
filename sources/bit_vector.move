@@ -1,4 +1,4 @@
-module candymachine::bit_vector {
+module candymachinev2::bit_vector {
     use std::vector;
 
     /// The provided index is out of bounds
