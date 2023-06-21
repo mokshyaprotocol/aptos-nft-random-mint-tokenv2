@@ -290,59 +290,6 @@ module candymachinev2::candymachine{
             candy_data.paused = true
         }
     }
-    public entry fun update_candy(
-        account: &signer,
-        candy_obj: address,
-        royalty_points_denominator: u64,
-        royalty_points_numerator: u64,
-        presale_mint_time: u64,
-        public_sale_mint_price: u64,
-        presale_mint_price: u64,
-        public_sale_mint_time: u64,
-    )acquires ResourceInfo,CandyMachine{
-        let account_addr = signer::address_of(account);
-        let resource_data = borrow_global<ResourceInfo>(candy_obj);
-        let now = aptos_framework::timestamp::now_seconds();
-        assert!(resource_data.source == account_addr, INVALID_SIGNER);
-        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
-        if (royalty_points_denominator>0){
-            candy_data.royalty_points_denominator = royalty_points_denominator
-        };
-        if (royalty_points_numerator>0){
-            candy_data.royalty_points_numerator = royalty_points_numerator
-        };
-        if (presale_mint_time>0){
-            assert!(presale_mint_time >= now,EINVALID_MINT_TIME);
-            candy_data.presale_mint_time = presale_mint_time
-        };
-        if (public_sale_mint_time>0){
-            assert!(public_sale_mint_time > candy_data.presale_mint_time,EINVALID_MINT_TIME);
-            candy_data.public_sale_mint_time = public_sale_mint_time
-        };
-        if (candy_data.public_sale_mint_price==0 || candy_data.presale_mint_price==0){
-            if (public_sale_mint_price>0){
-                candy_data.royalty_points_numerator = royalty_points_numerator
-            };
-            if (presale_mint_price>0){
-                candy_data.royalty_points_numerator = royalty_points_numerator
-            };
-        };
-        if (presale_mint_price>0){
-            candy_data.presale_mint_price = presale_mint_price
-        };
-        if (public_sale_mint_price>0){
-            candy_data.public_sale_mint_price = public_sale_mint_price
-        };
-        event::emit_event(&mut candy_data.update_event,UpdateCandyEvent {
-                presale_mint_price: candy_data.presale_mint_price,
-                presale_mint_time: candy_data.presale_mint_time,
-                public_sale_mint_price: candy_data.public_sale_mint_price,
-                public_sale_mint_time: candy_data.public_sale_mint_time,
-                royalty_points_denominator: candy_data.royalty_points_denominator,
-                royalty_points_numerator: candy_data.royalty_points_numerator,
-            }
-        );
-    }
 
     public entry fun update_wl_sale_time(
         account: &signer,
@@ -410,6 +357,20 @@ module candymachinev2::candymachine{
         candy_data.candies = candies:bit_vector::new(total_supply-candy_data.minted)
     }
 
+    public fun set_collection_royalties_call(
+        account: &signer,
+        candy_obj: address,
+        collection: Object<T>,
+        royalty_numerator: u64,
+        royalty_denominator: u64,
+        payee_address: address,
+    ){
+        let account_addr = signer::address_of(account);
+        let resource_data = borrow_global<ResourceInfo>(candy_obj);
+        assert!(resource_data.source == account_addr, INVALID_SIGNER);
+        let resource_signer_from_cap = account::create_signer_with_capability(&resource_data.resource_cap);
+        set_collection_royalties_call(&resource_signer_from_cap,collection,royalty_points_numerator,royalty_denominator,payee_address)
+    }
     public fun burn_token<T: key>(
         account: &signer,
         candymachine: address,
