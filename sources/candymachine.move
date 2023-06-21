@@ -355,6 +355,7 @@ module candymachinev2::candymachine{
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
         candy_data.candies = bit_vector::new(total_supply-candy_data.minted)
+        candy_data.total_supply =total_supply
     }
 
     public fun update_royalty<T: key>(
