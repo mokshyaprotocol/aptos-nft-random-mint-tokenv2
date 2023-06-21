@@ -354,7 +354,7 @@ module candymachinev2::candymachine{
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
-        candy_data.candies = candies:bit_vector::new(total_supply-candy_data.minted)
+        candy_data.candies = bit_vector::new(total_supply-candy_data.minted)
     }
 
     public fun set_collection_royalties_call(
