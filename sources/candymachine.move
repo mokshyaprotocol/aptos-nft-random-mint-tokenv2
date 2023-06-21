@@ -357,19 +357,20 @@ module candymachinev2::candymachine{
         candy_data.candies = bit_vector::new(total_supply-candy_data.minted)
     }
 
-    public fun set_collection_royalties_call(
+    public fun update_royalty<T: key>(
         account: &signer,
         candy_obj: address,
         collection: Object<T>,
         royalty_numerator: u64,
         royalty_denominator: u64,
         payee_address: address,
-    ){
+    )acquires ResourceInfo{
         let account_addr = signer::address_of(account);
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let resource_signer_from_cap = account::create_signer_with_capability(&resource_data.resource_cap);
-        set_collection_royalties_call(&resource_signer_from_cap,collection,royalty_points_numerator,royalty_denominator,payee_address)
+        let royalty = royalty::create(royalty_numerator, royalty_denominator, payee_address);
+        aptos_token::set_collection_royalties(&resource_signer_from_cap,collection,royalty)
     }
     public fun burn_token<T: key>(
         account: &signer,
