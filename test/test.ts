@@ -67,10 +67,10 @@ describe("whitelist", () => {
             ""+makeid(5),
         ]
         };
-        let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
-        let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
-        let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
-        console.log("Candy Machine created: "+transactionRes.hash)
+        // let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
+        // let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
+        // let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+        // console.log("Candy Machine created: "+transactionRes.hash)
         const mint_script = {
           type: "entry_function_payload",
           function: pid+"::candymachine::mint_script",
@@ -80,9 +80,11 @@ describe("whitelist", () => {
             "0xf4256e2e0ffc494f1d18e653c867a369d78dc134badddd14ab3b6ecb7bfbf685"
         ]
         };
-        txnRequest = await client.generateTransaction(bob.address(), mint_script);
-        bcsTxn = AptosClient.generateBCSTransaction(bob, txnRequest);
-        transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+        const cc = new AptosAccount(Buffer.from("0xf4256e2e0ffc494f1d18e653c867a369d78dc134badddd14ab3b6ecb7bfbf685"))
+        let txnRequest = await client.generateTransaction(bob.address(), mint_script);
+        let bcsTxn = AptosClient.generateBCSTransaction(cc, txnRequest);
+        console.log(bcsTxn)
+        let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
         console.log("Mint successfull: "+transactionRes.hash)
     })
   })

@@ -173,6 +173,17 @@ module candymachinev2::candymachine{
         assert!(now > candy_data.public_sale_mint_time, ESALE_NOT_STARTED);
         mint(receiver,&creator,candy_admin,candy_obj,mint_price)
     }
+    public entry fun mint_script_many(
+        receiver: &signer,
+        candy_obj: address,
+        amount: u64
+    )acquires CandyMachine,MintData,ResourceInfo,PublicMinters{
+        let i = 0;
+        while (i < amount){
+            mint_script(receiver,candy_obj);
+            i=i+1
+        }
+    }
     public entry fun mint_from_merkle(
         receiver: &signer,
         candy_obj: address,
@@ -204,6 +215,19 @@ module candymachinev2::candymachine{
             mint_data.total_apt=mint_data.total_apt+candy_data.presale_mint_price;
         };
         mint(receiver,&creator,candy_obj,candy_admin,candy_data.presale_mint_price);
+    }
+    public entry fun mint_from_merkle_many(
+        receiver: &signer,
+        candy_obj: address,
+        proof: vector<vector<u8>>,
+        mint_limit: u64,
+        amount: u64
+    )acquires MintData,CandyMachine,ResourceInfo,Whitelist,PublicMinters{
+        let i = 0;
+        while (i < amount){
+            mint_from_merkle(receiver,candy_obj,proof,mint_limit);
+            i=i+1
+        }
     }
     fun mint(
         receiver: &signer,
@@ -354,7 +378,6 @@ module candymachinev2::candymachine{
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
-        candy_data.candies = bit_vector::new(total_supply-candy_data.minted)
         candy_data.total_supply =total_supply
     }
 
