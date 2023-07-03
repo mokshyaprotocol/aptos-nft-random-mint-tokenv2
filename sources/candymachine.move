@@ -326,7 +326,7 @@ module candymachinev2::candymachine{
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
         assert!(presale_mint_time >= now,EINVALID_MINT_TIME);
-        candy_data.presale_mint_price = presale_mint_time;
+        candy_data.presale_mint_time = presale_mint_time;
     }
 
     public entry fun update_public_sale_time(
