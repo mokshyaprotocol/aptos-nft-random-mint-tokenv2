@@ -65,7 +65,7 @@ describe("whitelist", () => {
   //           0,
   //           false,
   //           ""+makeid(5),
-  //           true
+  //           false
   //       ]
   //       };
   //       let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
@@ -79,7 +79,7 @@ describe("whitelist", () => {
           function: pid+"::candymachine::mint_script",
           type_arguments: [],
           arguments: [
-            "0x80780debec55230a506b4433b03b0f6d60c084a6a10d93de5e862df3b18cb238"
+            "0x1ef083efe4fe41a088aa2da78ddd9f953850bd4d9a2590fa0b5b33b048634eab"
         ]
         };
         let txnRequest = await client.generateTransaction(bob.address(), mint_token);

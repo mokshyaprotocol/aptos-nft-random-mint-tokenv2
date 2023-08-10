@@ -281,8 +281,6 @@ module candymachinev2::candymachine{
             };
             bit_vector::set(&mut candy_data.candies,pos);
             let mint_position = pos;
-            let baseuri = candy_data.baseuri;
-            let properties = vector::empty<String>();
             string::append(&mut baseuri,num_str(mint_position));
             string::append(&mut token_name,string::utf8(b" #"));
             string::append(&mut token_name,num_str(mint_position));
