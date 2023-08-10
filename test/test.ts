@@ -26,7 +26,7 @@ const bob = new AptosAccount(HexString.ensure("0x2111111111111111111111111111111
 console.log("Alice Address: "+alice.address())
 console.log("Bob Address: "+bob.address())
 
-const pid ="0xc2182d93cca4457c35be34defd879a0f61c9ebd6444b634729b5d44442e1caf4"
+const pid ="0x511f963111905e2ae9cf79b00a9b9fa237dc6962e87018af3023615d7853d8fd"
 
 function makeid(length) {
   var result           = '';
@@ -42,49 +42,49 @@ const delay = (delayInms) => {
 }
 
 describe("whitelist", () => {
-  it("Merkle Mint", async () => {
-        const date = Math.floor(new Date().getTime() / 1000)
-        const create_candy_machine = {
-          type: "entry_function_payload",
-          function: pid+"::candymachine::init_candy",
-          type_arguments: [],
-          arguments: [
-            "Mokshya", // collection name
-            "This is the description of test collection", // collection description
-            "https://mokshya.io/nft/",  // collection 
-            alice.address(),
-            "1000",
-            "42",
-            date+10,
-            date+15,
-            "1",
-            "1",
-            "2000",
-            [false,false,false],
-            [false,false,false,false,false],
-            0,
-            false,
-            ""+makeid(5),
-        ]
-        };
-        // let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
-        // let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
-        // let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
-        // console.log("Candy Machine created: "+transactionRes.hash)
-        const mint_script = {
+  // it("Merkle Mint", async () => {
+  //       const date = Math.floor(new Date().getTime() / 1000)
+  //       const create_candy_machine = {
+  //         type: "entry_function_payload",
+  //         function: pid+"::candymachine::init_candy",
+  //         type_arguments: [],
+  //         arguments: [
+  //           "Mokshya", // collection name
+  //           "This is the description of test collection", // collection description
+  //           "https://mokshya.io/nft/",  // collection 
+  //           alice.address(),
+  //           "1000",
+  //           "42",
+  //           date+10,
+  //           date+15,
+  //           "1",
+  //           "1",
+  //           "2000",
+  //           [false,false,false],
+  //           [false,false,false,false,false],
+  //           0,
+  //           false,
+  //           ""+makeid(5),
+  //           true
+  //       ]
+  //       };
+  //       let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
+  //       let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
+  //       let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+  //       console.log("Candy Machine created: "+transactionRes.hash)
+  //     })
+      it("Mint", async () => {
+        const mint_token = {
           type: "entry_function_payload",
           function: pid+"::candymachine::mint_script",
           type_arguments: [],
           arguments: [
-            "0xf4256e2e0ffc494f1d18e653c867a369d78dc134badddd14ab3b6ecb7bfbf685",
-            "0xf4256e2e0ffc494f1d18e653c867a369d78dc134badddd14ab3b6ecb7bfbf685"
+            "0x80780debec55230a506b4433b03b0f6d60c084a6a10d93de5e862df3b18cb238"
         ]
         };
-        const cc = new AptosAccount(Buffer.from("0xf4256e2e0ffc494f1d18e653c867a369d78dc134badddd14ab3b6ecb7bfbf685"))
-        let txnRequest = await client.generateTransaction(bob.address(), mint_script);
-        let bcsTxn = AptosClient.generateBCSTransaction(cc, txnRequest);
-        console.log(bcsTxn)
+        let txnRequest = await client.generateTransaction(bob.address(), mint_token);
+        let bcsTxn = AptosClient.generateBCSTransaction(bob, txnRequest);
         let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
-        console.log("Mint successfull: "+transactionRes.hash)
-    })
+        console.log("Token Minted "+transactionRes.hash)
+      })
   })

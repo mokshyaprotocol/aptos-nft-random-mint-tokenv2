@@ -59,6 +59,7 @@ module candymachinev2::candymachine{
         merkle_root: vector<u8>,
         is_sbt: bool,
         update_event: EventHandle<UpdateCandyEvent>,
+        is_openedition:bool,
     }
     struct Whitelist has key {
         minters: BucketTable<address,u64>,
@@ -101,7 +102,8 @@ module candymachinev2::candymachine{
         token_mutate_setting:vector<bool>,
         public_mint_limit: u64,
         is_sbt: bool,
-        seeds: vector<u8>
+        seeds: vector<u8>,
+        is_openedition:bool,
     ){
         let constructor_ref = object::create_object_from_account(account);
         let object_signer = object::generate_signer(&constructor_ref);
@@ -113,31 +115,37 @@ module candymachinev2::candymachine{
         assert!(royalty_points_denominator > 0, EINVALID_ROYALTY_NUMERATOR_DENOMINATOR);
         assert!(public_sale_mint_time > presale_mint_time && presale_mint_time >= now,EINVALID_MINT_TIME);
         assert!(royalty_points_numerator <= royalty_points_denominator, EINVALID_ROYALTY_NUMERATOR_DENOMINATOR);
+        let supply = total_supply;
+        if (is_openedition)
+        {
+            supply=100000000;
+        };
         move_to<CandyMachine>(&object_signer, CandyMachine{
-            collection_name,
-            collection_description,
-            baseuri,
-            royalty_payee_address,
-            royalty_points_denominator,
-            royalty_points_numerator,
-            presale_mint_time,
-            public_sale_mint_time,
-            presale_mint_price,
-            public_sale_mint_price,
-            total_supply,
+            collection_name:collection_name,
+            collection_description:collection_description,
+            baseuri:baseuri,
+            royalty_payee_address:royalty_payee_address,
+            royalty_points_denominator:royalty_points_denominator,
+            royalty_points_numerator:royalty_points_numerator,
+            presale_mint_time:presale_mint_time,
+            public_sale_mint_time:public_sale_mint_time,
+            presale_mint_price:presale_mint_price,
+            public_sale_mint_price:public_sale_mint_price,
+            total_supply:supply,
             minted:0,
             paused:false,
             candies:bit_vector::new(total_supply),
-            token_mutate_setting,
+            token_mutate_setting:token_mutate_setting,
             public_mint_limit: public_mint_limit,
             merkle_root: vector::empty(),
             is_sbt: is_sbt,
             update_event: account::new_event_handle<UpdateCandyEvent>(&resource_signer_from_cap),
+            is_openedition:is_openedition,
         });
         aptos_token::create_collection(
             &resource_signer_from_cap, 
             collection_description, 
-            total_supply,
+            supply,
             collection_name,
             baseuri, 
             true,
@@ -246,34 +254,42 @@ module candymachinev2::candymachine{
         };
         assert!(!candy_data.paused, EPAUSED);
         assert!(candy_data.minted != candy_data.total_supply, ESOLD_OUT);
-        let remaining = candy_data.total_supply - candy_data.minted;
-        let random_index = pseudo_random(receiver_addr,remaining);
-        let required_position=0; // the number of unset 
-        let pos=0; // the mint number 
-        while (required_position < random_index)
-        {
-        if (!bit_vector::is_index_set(&candy_data.candies, pos))
-            {
-                required_position=required_position+1;
-
-            };
-        if (required_position == random_index)
-            {                    
-                break
-            };
-            pos=pos+1;
-        };
-        bit_vector::set(&mut candy_data.candies,pos);
-        let mint_position = pos;
         let baseuri = candy_data.baseuri;
-        let properties = vector::empty<String>();
-        string::append(&mut baseuri,num_str(mint_position));
         let token_name = candy_data.collection_name;
-        string::append(&mut token_name,string::utf8(b" #"));
-        string::append(&mut token_name,num_str(mint_position));
-        string::append(&mut baseuri,string::utf8(b".json"));
-        let token_creation_num = account::get_guid_next_creation_num(signer::address_of(creator));
-        aptos_token::mint(
+        if(candy_data.is_openedition)
+        {
+            string::append(&mut token_name,string::utf8(b" #"));
+            string::append(&mut token_name,num_str(candy_data.minted));
+        } else
+        {
+            let remaining = candy_data.total_supply - candy_data.minted;
+            let random_index = pseudo_random(receiver_addr,remaining);
+            let required_position=0; // the number of unset 
+            let pos=0; // the mint number 
+            while (required_position < random_index)
+            {
+            if (!bit_vector::is_index_set(&candy_data.candies, pos))
+                {
+                    required_position=required_position+1;
+
+                };
+            if (required_position == random_index)
+                {                    
+                    break
+                };
+                pos=pos+1;
+            };
+            bit_vector::set(&mut candy_data.candies,pos);
+            let mint_position = pos;
+            let baseuri = candy_data.baseuri;
+            let properties = vector::empty<String>();
+            string::append(&mut baseuri,num_str(mint_position));
+            string::append(&mut token_name,string::utf8(b" #"));
+            string::append(&mut token_name,num_str(mint_position));
+            string::append(&mut baseuri,string::utf8(b".json"));
+        };
+
+        let minted_token = aptos_token::mint_token_object(
             creator,
             candy_data.collection_name,
             candy_data.collection_description,
@@ -283,7 +299,6 @@ module candymachinev2::candymachine{
             vector::empty<String>(),
             vector::empty()
         );
-        let minted_token = object::address_to_object<AptosToken>(object::create_guid_object_address(signer::address_of(creator), token_creation_num));
         object::transfer( creator, minted_token, receiver_addr);
         let fee = (300*mint_price)/10000;
         let collection_owner_price = mint_price - fee;
