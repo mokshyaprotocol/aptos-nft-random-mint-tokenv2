@@ -394,7 +394,7 @@ module candymachinev2::candymachine{
         candy_data.total_supply =total_supply
     }
 
-    public fun update_royalty<T: key>(
+    public entry fun update_royalty<T: key>(
         account: &signer,
         candy_obj: address,
         collection: Object<T>,
