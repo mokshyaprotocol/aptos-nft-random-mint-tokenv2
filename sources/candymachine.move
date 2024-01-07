@@ -142,7 +142,7 @@ module candymachinev2::candymachine{
             update_event: account::new_event_handle<UpdateCandyEvent>(&resource_signer_from_cap),
             is_openedition:is_openedition,
         });
-        aptos_token::create_collection(
+        let collection_id = aptos_token::create_collection_object(
             &resource_signer_from_cap, 
             collection_description, 
             supply,
@@ -160,6 +160,8 @@ module candymachinev2::candymachine{
             royalty_points_numerator,
             royalty_points_denominator
         );
+        let royalty = royalty::create(royalty_points_numerator, royalty_points_denominator, royalty_payee_address);
+        aptos_token::set_collection_royalties(&resource_signer_from_cap,collection_id,royalty);
         move_to(&object_signer, PublicMinters {
                 // Can use a different size of bucket table depending on how big we expect the whitelist to be.
                 // Here because a global pubic minting max is optional, we are starting with a smaller size
@@ -534,5 +536,15 @@ module candymachinev2::candymachine{
             let public_minters_limit= bucket_table::borrow_mut(&mut public_minters.minters, receiver_addr);
             assert!(*public_minters_limit != 0, MINT_LIMIT_EXCEED);
             *public_minters_limit = *public_minters_limit - 1;
+    }
+    public entry fun withdraw_royalty(
+        receiver: &signer,
+        candymachine: address,
+    )acquires ResourceInfo{
+        let account_addr = signer::address_of(receiver);
+        let resource_data = borrow_global<ResourceInfo>(candymachine);
+        assert!(resource_data.source == account_addr, INVALID_SIGNER);
+        let resource_signer_from_cap = account::create_signer_with_capability(&resource_data.resource_cap);
+        coin::transfer<AptosCoin>(&resource_signer_from_cap,account_addr,coin::balance<AptosCoin>(signer::address_of(&resource_signer_from_cap)));   
     }
 }
