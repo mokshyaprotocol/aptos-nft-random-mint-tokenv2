@@ -2,6 +2,7 @@ module candymachinev2::candymachine{
     use std::signer;
     use std::bcs;
     use std::hash;
+    use std::error;
     use aptos_std::aptos_hash;
     use aptos_std::from_bcs;
     use std::string::{Self, String};
@@ -33,6 +34,12 @@ module candymachinev2::candymachine{
     const MINT_LIMIT_EXCEED: u64 = 9;
     const INVALID_PROOF:u64 = 10;
     const WhitelistMintNotEnabled: u64 = 11;
+    const EEND_TIME_EXCEEDS:u64 = 12;
+    /// The whitelist start time is not strictly smaller than the whitelist end time.
+    const EINVALID_WHITELIST_SETTING: u64 = 13;
+    /// The whitelist stage should be added in order. If the whitelist_stage parameter is not equal to the length of the whitelist_configs vector,
+    /// it means that the whitelist stage is not added in order and we need to abort.
+    const EINVALID_STAGE: u64 = 14;
     const MokshyaFee: address = @0x305d730682a5311fbfc729a51b8eec73924b40849bff25cf9fdb4348cc0a719a;
 
     struct MintData has key {
@@ -50,6 +57,7 @@ module candymachinev2::candymachine{
         public_sale_mint_time: u64,
         presale_mint_price: u64,
         public_sale_mint_price: u64,
+        end_time: u64,
         paused: bool,
         total_supply: u64,
         minted: u64,
@@ -70,6 +78,19 @@ module candymachinev2::candymachine{
     struct ResourceInfo has key {
             source: address,
             resource_cap: account::SignerCapability
+    }
+    /// WhitelistMintConfig stores information about all stages of whitelist.
+    /// Most whitelists are one-stage, but we allow multiple stages to be added in case there are multiple rounds of whitelists.
+    struct WhitelistMintConfig has key {
+        whitelist_configs: vector<WhitelistStage>,
+    }
+
+    /// WhitelistMintConfigSingleStage stores information about one stage of whitelist.
+    struct WhitelistStage has store {
+        merkle_root: vector<u8>,
+        whitelist_mint_price: u64,
+        whitelist_minting_start_time: u64,
+        whitelist_minting_end_time: u64,
     }
     struct UpdateCandyEvent has drop, store {
         presale_mint_price: u64,
@@ -104,6 +125,7 @@ module candymachinev2::candymachine{
         is_sbt: bool,
         seeds: vector<u8>,
         is_openedition:bool,
+        end_time:u64
     ){
         let constructor_ref = object::create_object_from_account(account);
         let object_signer = object::generate_signer(&constructor_ref);
@@ -133,6 +155,7 @@ module candymachinev2::candymachine{
             public_sale_mint_price:public_sale_mint_price,
             total_supply:supply,
             minted:0,
+            end_time:end_time,
             paused:false,
             candies:bit_vector::new(total_supply),
             token_mutate_setting:token_mutate_setting,
@@ -168,6 +191,11 @@ module candymachinev2::candymachine{
                 // bucket table.
                 minters: bucket_table::new<address, u64>(4),
          });
+         let config = WhitelistMintConfig {
+            whitelist_configs: vector::empty<WhitelistStage>(),
+        };
+        move_to(&object_signer, config);
+        // remove this
         initialize_whitelist(object_signer)
     }
     public entry fun mint_script(
@@ -199,19 +227,28 @@ module candymachinev2::candymachine{
         candy_obj: address,
         proof: vector<vector<u8>>,
         mint_limit: u64,
-    ) acquires MintData,CandyMachine,ResourceInfo,Whitelist,PublicMinters{
+        wl_stage: u64
+    ) acquires MintData,CandyMachine,ResourceInfo,Whitelist,PublicMinters,WhitelistMintConfig{
         let receiver_addr = signer::address_of(receiver);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
+        let whitelist_mint_config = borrow_global<WhitelistMintConfig>(candy_obj);
+        let mint_data = borrow_global_mut<MintData>(@candymachinev2);
+
+        let whitelist_stage = vector::borrow(&whitelist_mint_config.whitelist_configs, wl_stage);
+        
         let creator = account::create_signer_with_capability(&resource_data.resource_cap);
         let candy_admin = resource_data.source;
-        let mint_data = borrow_global_mut<MintData>(@candymachinev2);
         let now = aptos_framework::timestamp::now_seconds();
         let leafvec = bcs::to_bytes(&receiver_addr);
         vector::append(&mut leafvec,bcs::to_bytes(&mint_limit));
-        let is_whitelist_mint = candy_data.presale_mint_time < now && now < candy_data.public_sale_mint_time;
-        assert!(is_whitelist_mint, WhitelistMintNotEnabled);
-        assert!(merkle_proof::verify(proof,candy_data.merkle_root,aptos_hash::keccak256(leafvec)),INVALID_PROOF);
+
+        // need to test properly 
+        let is_public_mint = candy_data.presale_mint_time < now && now < candy_data.public_sale_mint_time;
+        let is_wl_mint = whitelist_stage.whitelist_minting_start_time <= now && now < whitelist_stage.whitelist_minting_end_time;
+        assert!(is_public_mint || is_wl_mint, WhitelistMintNotEnabled);
+        
+        assert!(merkle_proof::verify(proof,whitelist_stage.merkle_root,aptos_hash::keccak256(leafvec)),INVALID_PROOF);
         // No need to check limit if mint limit = 0, this means the minter can mint unlimited amount of tokens
         if(mint_limit != 0){
             let whitelist_data = borrow_global_mut<Whitelist>(candy_obj);
@@ -222,20 +259,21 @@ module candymachinev2::candymachine{
             let minted_nft = bucket_table::borrow_mut(&mut whitelist_data.minters, receiver_addr);
             assert!(*minted_nft != mint_limit, MINT_LIMIT_EXCEED);
             *minted_nft = *minted_nft + 1;
-            mint_data.total_apt=mint_data.total_apt+candy_data.presale_mint_price;
+            mint_data.total_apt=mint_data.total_apt+whitelist_stage.whitelist_mint_price;
         };
-        mint(receiver,&creator,candy_admin,candy_obj,candy_data.presale_mint_price);
+        mint(receiver,&creator,candy_admin,candy_obj,whitelist_stage.whitelist_mint_price);
     }
     public entry fun mint_from_merkle_many(
         receiver: &signer,
         candy_obj: address,
         proof: vector<vector<u8>>,
         mint_limit: u64,
-        amount: u64
-    )acquires MintData,CandyMachine,ResourceInfo,Whitelist,PublicMinters{
+        amount: u64,
+        wl_stage: u64
+    )acquires MintData,CandyMachine,ResourceInfo,Whitelist,PublicMinters,WhitelistMintConfig{
         let i = 0;
         while (i < amount){
-            mint_from_merkle(receiver,candy_obj,proof,mint_limit);
+            mint_from_merkle(receiver,candy_obj,proof,mint_limit,wl_stage);
             i=i+1
         }
     }
@@ -255,6 +293,8 @@ module candymachinev2::candymachine{
             mint_data.total_apt=mint_data.total_apt+candy_data.public_sale_mint_price;
         };
         assert!(!candy_data.paused, EPAUSED);
+        // pending testing
+        assert!(candy_data.end_time >= now, EEND_TIME_EXCEEDS);
         assert!(candy_data.minted != candy_data.total_supply, ESOLD_OUT);
         let baseuri = candy_data.baseuri;
         let token_name = candy_data.collection_name;
@@ -306,6 +346,31 @@ module candymachinev2::candymachine{
         coin::transfer<AptosCoin>(receiver, candy_admin, collection_owner_price);
         candy_data.minted=candy_data.minted+1;
         mint_data.total_mints=mint_data.total_mints+1
+    }
+    public fun add_or_update_whitelist_stage(account: &signer, candy_obj:address, merkle_root:vector<u8>, whitelist_start_time: u64, whitelist_end_time: u64, whitelist_price: u64, whitelist_stage: u64) acquires WhitelistMintConfig,ResourceInfo {
+        assert!(whitelist_start_time < whitelist_end_time, error::invalid_argument(EINVALID_WHITELIST_SETTING));
+        let account_addr = signer::address_of(account);
+        let resource_data = borrow_global<ResourceInfo>(candy_obj);
+        assert!(resource_data.source == account_addr, INVALID_SIGNER);
+        let num_stages = get_num_of_stages(account_addr);
+        assert!(whitelist_stage <= num_stages, error::invalid_argument(EINVALID_STAGE));
+        let config = borrow_global_mut<WhitelistMintConfig>(candy_obj);
+
+        // If whitelist_stage equals num_stages, it means that the user wants to add a new stage at the end of the whitelist stages.
+        if (whitelist_stage == num_stages) {
+            let whitelist_stage = WhitelistStage {
+                merkle_root: merkle_root,
+                whitelist_mint_price: whitelist_price,
+                whitelist_minting_start_time: whitelist_start_time,
+                whitelist_minting_end_time: whitelist_end_time,
+            };
+            vector::push_back(&mut config.whitelist_configs, whitelist_stage);
+        } else {
+            let whitelist_stage_to_be_updated = vector::borrow_mut(&mut config.whitelist_configs, whitelist_stage);
+            whitelist_stage_to_be_updated.whitelist_mint_price = whitelist_price;
+            whitelist_stage_to_be_updated.whitelist_minting_start_time = whitelist_start_time;
+            whitelist_stage_to_be_updated.whitelist_minting_end_time = whitelist_end_time;
+        };
     }
     public entry fun set_root(account: &signer,candy_obj: address,merkle_root: vector<u8>) acquires CandyMachine,ResourceInfo{
         let account_addr = signer::address_of(account);
@@ -537,14 +602,14 @@ module candymachinev2::candymachine{
             assert!(*public_minters_limit != 0, MINT_LIMIT_EXCEED);
             *public_minters_limit = *public_minters_limit - 1;
     }
-    public entry fun withdraw_royalty(
-        receiver: &signer,
-        candymachine: address,
-    )acquires ResourceInfo{
-        let account_addr = signer::address_of(receiver);
-        let resource_data = borrow_global<ResourceInfo>(candymachine);
-        assert!(resource_data.source == account_addr, INVALID_SIGNER);
-        let resource_signer_from_cap = account::create_signer_with_capability(&resource_data.resource_cap);
-        coin::transfer<AptosCoin>(&resource_signer_from_cap,account_addr,coin::balance<AptosCoin>(signer::address_of(&resource_signer_from_cap)));   
+    #[view]
+    /// Returns the number of total stages available.
+    public fun get_num_of_stages(module_address: address): u64 acquires WhitelistMintConfig {
+        vector::length(&borrow_global<WhitelistMintConfig>(module_address).whitelist_configs)
+    }
+    #[view]
+    /// Checks if WhitelistMintConfig resource exists.
+    public fun whitelist_config_exists(module_address: address): bool {
+        exists<WhitelistMintConfig>(module_address)
     }
 }
