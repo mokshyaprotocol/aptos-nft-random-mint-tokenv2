@@ -19,11 +19,13 @@ module candymachinev2::bit_vector {
         assert!(length > 0, ELENGTH);
         let counter = 0;
         let bit_field = vector::empty();
-        while ({spec {
-            invariant counter <= length;
-            invariant len(bit_field) == counter;
-        };
-            (counter < length)}) {
+        while ({
+            spec {
+                invariant counter <= length;
+                invariant len(bit_field) == counter;
+            };
+            (counter < length)
+        }) {
             vector::push_back(&mut bit_field, false);
             counter = counter + 1;
         };
@@ -84,13 +86,13 @@ module candymachinev2::bit_vector {
     /// bitvector's length the bitvector will be zeroed out.
     public fun shift_left(bitvector: &mut BitVector, amount: u64) {
         if (amount >= bitvector.length) {
-           let len = vector::length(&bitvector.bit_field);
-           let i = 0;
-           while (i < len) {
-               let elem = vector::borrow_mut(&mut bitvector.bit_field, i);
-               *elem = false;
-               i = i + 1;
-           };
+            let len = vector::length(&bitvector.bit_field);
+            let i = 0;
+            while (i < len) {
+                let elem = vector::borrow_mut(&mut bitvector.bit_field, i);
+                *elem = false;
+                i = i + 1;
+            };
         } else {
             let i = amount;
 
@@ -124,6 +126,7 @@ module candymachinev2::bit_vector {
         bit_index: u64;
         aborts_if bit_index >= length(bitvector) with EINDEX;
     }
+
     spec fun spec_is_index_set(bitvector: BitVector, bit_index: u64): bool {
         if (bit_index >= length(bitvector)) {
             false

@@ -60,7 +60,7 @@ module candymachinev2::bucket_table {
             vector::destroy_empty(table_with_length::remove(&mut map.buckets, i));
             i = i + 1;
         };
-        let BucketTable {buckets, num_buckets: _, level: _, len: _} = map;
+        let BucketTable { buckets, num_buckets: _, level: _, len: _ } = map;
         table_with_length::destroy_empty(buckets);
     }
 
@@ -78,7 +78,7 @@ module candymachinev2::bucket_table {
             assert!(&entry.key != &key, error::invalid_argument(EALREADY_EXIST));
             i = i + 1;
         };
-        vector::push_back(bucket, Entry {hash, key, value});
+        vector::push_back(bucket, Entry { hash, key, value });
         map.len = map.len + 1;
 
         if (load_factor(map) > SPLIT_THRESHOLD) {
@@ -89,7 +89,8 @@ module candymachinev2::bucket_table {
     fun xor(a: u64, b: u64): u64 {
         a ^ b
     }
-    spec xor { // TODO: temporary mockup until Prover supports the operator `^`.
+    spec xor {
+        // TODO: temporary mockup until Prover supports the operator `^`.
         pragma opaque;
         pragma verify = false;
     }
@@ -194,7 +195,7 @@ module candymachinev2::bucket_table {
 
     /// Remove from `table` and return the value which `key` maps to.
     /// Aborts if there is no entry for `key`.
-    public fun remove<K: drop, V>(map: &mut BucketTable<K,V>, key: &K): V {
+    public fun remove<K: drop, V>(map: &mut BucketTable<K, V>, key: &K): V {
         let index = bucket_index(map.level, map.num_buckets, sip_hash_from_value(key));
         let bucket = table_with_length::borrow_mut(&mut map.buckets, index);
         let i = 0;
@@ -202,7 +203,7 @@ module candymachinev2::bucket_table {
         while (i < len) {
             let entry = vector::borrow(bucket, i);
             if (&entry.key == key) {
-                let Entry {hash:_, key:_, value} = vector::swap_remove(bucket, i);
+                let Entry { hash: _, key: _, value } = vector::swap_remove(bucket, i);
                 map.len = map.len - 1;
                 return value
             };
