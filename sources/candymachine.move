@@ -64,7 +64,6 @@ module candymachinev2::candymachine{
         token_mutate_setting:vector<bool>,
         candies:BitVector,
         public_mint_limit: u64,
-        merkle_root: vector<u8>,
         is_sbt: bool,
         update_event: EventHandle<UpdateCandyEvent>,
         is_openedition:bool,
@@ -160,7 +159,6 @@ module candymachinev2::candymachine{
             candies:bit_vector::new(total_supply),
             token_mutate_setting:token_mutate_setting,
             public_mint_limit: public_mint_limit,
-            merkle_root: vector::empty(),
             is_sbt: is_sbt,
             update_event: account::new_event_handle<UpdateCandyEvent>(&resource_signer_from_cap),
             is_openedition:is_openedition,
@@ -372,13 +370,6 @@ module candymachinev2::candymachine{
             whitelist_stage_to_be_updated.whitelist_minting_end_time = whitelist_end_time;
         };
     }
-    public entry fun set_root(account: &signer,candy_obj: address,merkle_root: vector<u8>) acquires CandyMachine,ResourceInfo{
-        let account_addr = signer::address_of(account);
-        let resource_data = borrow_global<ResourceInfo>(candy_obj);
-        assert!(resource_data.source == account_addr, INVALID_SIGNER);
-        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
-        candy_data.merkle_root = merkle_root
-    }
     public entry fun pause_resume_mint(
         account: &signer,
         candymachine: address,
@@ -430,7 +421,6 @@ module candymachinev2::candymachine{
     )acquires CandyMachine,ResourceInfo{
         let account_addr = signer::address_of(account);
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
-        let now = aptos_framework::timestamp::now_seconds();
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
         candy_data.public_sale_mint_price = public_sale_mint_price;
@@ -443,7 +433,6 @@ module candymachinev2::candymachine{
     )acquires CandyMachine,ResourceInfo{
         let account_addr = signer::address_of(account);
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
-        let now = aptos_framework::timestamp::now_seconds();
         assert!(resource_data.source == account_addr, INVALID_SIGNER);
         let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
         candy_data.presale_mint_price = presale_mint_price;
@@ -611,5 +600,82 @@ module candymachinev2::candymachine{
     /// Checks if WhitelistMintConfig resource exists.
     public fun whitelist_config_exists(module_address: address): bool {
         exists<WhitelistMintConfig>(module_address)
+    }
+    #[test_only]
+    public fun set_up_test(
+        account: &signer,
+        creator: &signer,
+        aptos_framework: &signer,
+        minter: &signer,
+        candymachine: &signer,
+        fee_account: &signer,
+        timestamp: u64,
+        mint_limit: u64
+    )
+    {
+       candymachine::init_module(account);
+        let add1=  x"d4dee0beab2d53f2cc83e567171bd2820e49898130a22622b10ead383e90bd77";
+        let add2 = x"5f16f4c7f149ac4f9510d9cf8cf384038ad348b3bcdc01915f95de12df9d1b02";
+        vector::append(&mut add1,bcs::to_bytes(&mint_limit));
+        vector::append(&mut add2,bcs::to_bytes(&mint_limit));
+        let leaf1 = aptos_hash::keccak256(add1);
+        let leaf2 = aptos_hash::keccak256(add2);
+        let root = candymachinev2::merkle_proof::find_root(leaf1,leaf2);
+        account::create_account_for_test(signer::address_of(creator));
+        account::create_account_for_test(MokshyaFee);
+        account::create_account_for_test(signer::address_of(minter));
+        let (burn_cap, mint_cap) = aptos_framework::aptos_coin::initialize_for_test(aptos_framework);
+        coin::register<0x1::aptos_coin::AptosCoin>(minter);
+        coin::register<0x1::aptos_coin::AptosCoin>(fee_account);
+        coin::register<0x1::aptos_coin::AptosCoin>(creator);
+        coin::deposit(signer::address_of(minter), coin::mint(10000, &mint_cap));
+        coin::deposit(signer::address_of(creator), coin::mint(1000, &mint_cap));
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+        aptos_framework::timestamp::set_time_has_started_for_testing(candymachine);
+        aptos_framework::timestamp::update_global_time_for_test_secs(timestamp);
+        init_candy(
+                creator,
+                string::utf8(b"Collection: Mokshya"),
+                string::utf8(b"Collection: Mokshya"),
+                string::utf8(b"https://mokshya.io"),
+                signer::address_of(creator),
+                100,
+                0,
+                80,
+                100,
+                100,
+                0,
+                100,
+                vector<bool>[false, false, false],
+                vector<bool>[false, false, false, false, false],
+                0,
+                false,
+                b"candy",
+                false,
+                200
+        );
+        let candy_machine1 = account::create_resource_address(&signer::address_of(creator), b"candy");
+        let candy_machine2 = account::create_resource_address(&signer::address_of(creator), b"candy_with_data");
+        // set_root(creator,candy_machine1,root);
+        // candymachinev2::init_candy(
+        //     creator,
+        //     string::utf8(b"Collection: Mokshya"),
+        //     string::utf8(b"Collection: Mokshya"),
+        //     string::utf8(b"https://mokshya.io"),
+        //     signer::address_of(creator),
+        //     100,
+        //     0,
+        //     80,
+        //     100,
+        //     100,
+        //     0,
+        //     100,
+        //     vector<bool>[false, false, false],
+        //     vector<bool>[false, false, false, false, false],
+        //     1,
+        //     b"candy_with_data"
+        // );
+        // set_root(creator,candy_machine2,root)
     }
 }
