@@ -30,7 +30,7 @@ module candymachinev2::merkle_proof {
     }
 
     /// Returns true if a is greater than b
-    inline fun compare_vector(a: &vector<u8>, b: &vector<u8>): bool {
+    fun compare_vector(a: &vector<u8>, b: &vector<u8>): bool {
         let index = 0;
         let length = vector::length(a);
 
