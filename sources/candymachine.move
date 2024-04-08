@@ -726,4 +726,36 @@ module candymachinev2::candymachine {
             coin::balance<AptosCoin>(signer::address_of(&resource_signer_from_cap))
         );
     }
+
+    /// In future, if we need to upgrade contract we can use this to get total apt and mints details
+    public (friend) fun update_mint_data(price: u64, nfts: u64)acquires MintData{
+        let mint_data = borrow_global_mut<MintData>(@candymachinev2);
+        mint_data.total_apt = mint_data.total_apt + price;
+        mint_data.total_mints = mint_data.total_apt + nfts;
+    }
+
+    #[view]
+    public fun getPublicMintLimit(minter: address, candymachine: address): u64 acquires PublicMinters{
+        let public_minters = borrow_global_mut<PublicMinters>(candymachine);
+        if (bucket_table::contains(&public_minters.minters, &minter)) {
+            let public_minters_limit = bucket_table::borrow_mut(&mut public_minters.minters, minter);
+            return *public_minters_limit
+        }
+        else {
+            return 0
+        }
+    }
+    
+    #[view]
+    public fun getWhitelistMintLimit(minter: address, candymachine: address): u64 acquires Whitelist{
+        let whitelist_data = borrow_global_mut<Whitelist>(candymachine);
+        if (bucket_table::contains(&whitelist_data.minters, &minter)) {
+            let minted_nft = bucket_table::borrow_mut(&mut whitelist_data.minters, minter);
+            return *minted_nft
+        }
+        else {
+            return 0
+        }
+    }
+
 }

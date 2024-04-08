@@ -5,7 +5,7 @@ version = '1.0.0'
 std = "0x1"
 aptos_std = "0x1"
 aptos_framework = "0x1"
-candymachinev2 = "6547d9f1d481fdc21cd38c730c07974f2f61adb7063e76f9d9522ab91f090dac" 
+candymachinev2 = "0xec015e1b499cf9302b07a040857e32cc9afc8c346819027b0ba4bd0b3dd55c12" 
 aptos_token_objects = "0x4"
 [dependencies]
 AptosFramework = {git = 'https://github.com/aptos-labs/aptos-core.git',rev='main',subdir = 'aptos-move/framework/aptos-framework'}

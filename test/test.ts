@@ -9,6 +9,9 @@ const {
   ChainId,
 } = TxnBuilderTypes;
 
+import { u64 } from "@saberhq/token-utils";
+import keccak256 from "keccak256";
+import MerkleTree from "merkletreejs";
 
 const NODE_URL = "https://fullnode.testnet.aptoslabs.com/v1";
 const FAUCET_URL = "https://faucet.devnet.aptoslabs.com";
@@ -25,7 +28,7 @@ const bob = new AptosAccount(HexString.ensure("0x2111111111111111111111111111111
 console.log("Alice Address: "+alice.address())
 console.log("Bob Address: "+bob.address())
 
-const pid ="0x6547d9f1d481fdc21cd38c730c07974f2f61adb7063e76f9d9522ab91f090dac"
+const pid ="0xec015e1b499cf9302b07a040857e32cc9afc8c346819027b0ba4bd0b3dd55c12"
 
 function makeid(length) {
   var result           = '';
@@ -40,65 +43,113 @@ const delay = (delayInms) => {
   return new Promise(resolve => setTimeout(resolve, delayInms));
 }
 
+const to_buf = (account:Uint8Array,amount:number): Buffer=>{ 
+  return Buffer.concat([
+    account,
+    new u64(amount).toArrayLike(Buffer, "le", 8),
+  ]);
+}
 describe("whitelist", () => {
-  it("Merkle Mint", async () => {
-        const date = Math.floor(new Date().getTime() / 1000)
-        const create_candy_machine = {
+  let whitelistAddresses = [
+    to_buf(alice.address().toUint8Array(),2),
+  ];
+  for(let i=0;i<200;i++){
+    whitelistAddresses.push(to_buf(new AptosAccount().address().toUint8Array(),1))
+  }
+  whitelistAddresses.push(to_buf(alice.address().toUint8Array(),1))
+  let leafNodes = whitelistAddresses.map((address) => keccak256(address));
+  let rt;
+  if (leafNodes[0] <= leafNodes[1])
+  {
+    rt = keccak256(Buffer.concat([leafNodes[0],leafNodes[1]]));
+  }
+  else
+  {
+     rt = keccak256(Buffer.concat([leafNodes[1],leafNodes[0]]));
+  }
+  let tree = new MerkleTree(leafNodes, keccak256, { sortPairs: true });
+      // it("Merkle Mint", async () => {
+      //   const date = Math.floor(new Date().getTime() / 1000)
+      //   const create_candy_machine = {
+      //     type: "entry_function_payload",
+      //     function: pid+"::candymachine::init_candy",
+      //     type_arguments: [],
+      //     arguments: [
+      //       "Mokshya", // collection name
+      //       "This is the description of test collection", // collection description
+      //       "https://mint.wapal.io/nft/",  // baseuri 
+      //       alice.address(), //royalty_payee_address
+      //       "1000", //royalty_points_denominator
+      //       "42", //royalty_points_numerator
+      //       date+10, //presale_mint_time
+      //       date+10000005, //public_sale_mint_time
+      //       "1", //presale_mint_price
+      //       "1", //public_sale_mint_price
+      //       "2000", //total_supply
+      //       [false,false,false], //collection_mutate_setting
+      //       [false,false,false,false,false], //token_mutate_setting
+      //       0, //public_mint_limit
+      //       false, //is_sbt
+      //       ""+makeid(5), //seeds
+      //       true //is_openedition
+      //   ]
+      //   };
+      //   let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
+      //   let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
+      //   let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+      //   console.log("Candy Machine created: "+transactionRes.hash)
+      //   console.log(transactionRes)
+      // })
+      it("set root", async () => {
+        const mint_token = {
           type: "entry_function_payload",
-          function: pid+"::candymachine::init_candy",
+          function: pid+"::candymachine::set_root",
           type_arguments: [],
           arguments: [
-            "Mokshya", // collection name
-            "This is the description of test collection", // collection description
-            "https://mint.wapal.io/nft/",  // collection 
-            alice.address(),
-            "1000",
-            "42",
-            date+10,
-            date+15,
-            "1",
-            "1",
-            "2000",
-            [false,false,false],
-            [false,false,false,false,false],
-            0,
-            false,
-            ""+makeid(5),
-            true
-        ]
+            "0xbd4bfb6133416d44418c3baa02abb8d7ff9bee03fc05899596d7f84f1f4fe4a9",
+            tree.getRoot()
+          ]
         };
-        let txnRequest = await client.generateTransaction(alice.address(), create_candy_machine);
+        let txnRequest = await client.generateTransaction(alice.address(), mint_token);
         let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
         let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
-        console.log("Candy Machine created: "+transactionRes.hash)
-        console.log(transactionRes)
+        console.log("Root Set "+transactionRes.hash)
       })
       it("Mint", async () => {
+        const proofs = [];
+        const proof = tree.getProof((keccak256(whitelistAddresses[(whitelistAddresses.length)-1])));
+        let not_whitelist= keccak256(whitelistAddresses[1]);
+       // 0x50130b2cf86b99972623f93b979ccfda73494b3bc61128b25c88d734d5547cda
+         proof.forEach((p) => {
+           proofs.push(p.data);
+         });
         const mint_token = {
           type: "entry_function_payload",
-          function: pid+"::candymachine::mint_script",
+          function: pid+"::candymachine::mint_from_merkle",
           type_arguments: [],
           arguments: [
-            "0x8bac40d532374ac5f6820148b7f564a3f26465f3e4c4af85126bcc5a470aa096"
+            "0xbd4bfb6133416d44418c3baa02abb8d7ff9bee03fc05899596d7f84f1f4fe4a9",
+            proofs,
+            1
         ]
         };
-        let txnRequest = await client.generateTransaction(bob.address(), mint_token);
-        let bcsTxn = AptosClient.generateBCSTransaction(bob, txnRequest);
+        let txnRequest = await client.generateTransaction(alice.address(), mint_token);
+        let bcsTxn = AptosClient.generateBCSTransaction(alice, txnRequest);
         let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
         console.log("Token Minted "+transactionRes.hash)
       })
-      it("Burn", async () => {
-        const mint_token = {
-          type: "entry_function_payload",
-          function: pid+"::candymachine::burn_token",
-          type_arguments: [],
-          arguments: [
-            "0x5f2c44aae1e80f667b41e2595fe7800cb9620a8224450a911608d30fd9091fb5"
-        ]
-        };
-        let txnRequest = await client.generateTransaction(bob.address(), mint_token);
-        let bcsTxn = AptosClient.generateBCSTransaction(bob, txnRequest);
-        let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
-        console.log("Token Minted "+transactionRes.hash)
-      })
+      // it("Burn", async () => {
+      //   const mint_token = {
+      //     type: "entry_function_payload",
+      //     function: pid+"::candymachine::burn_token",
+      //     type_arguments: [],
+      //     arguments: [
+      //       "0x5f2c44aae1e80f667b41e2595fe7800cb9620a8224450a911608d30fd9091fb5"
+      //   ]
+      //   };
+      //   let txnRequest = await client.generateTransaction(bob.address(), mint_token);
+      //   let bcsTxn = AptosClient.generateBCSTransaction(bob, txnRequest);
+      //   let transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
+      //   console.log("Token Minted "+transactionRes.hash)
+      // })
   })
