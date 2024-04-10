@@ -28,7 +28,7 @@ const bob = new AptosAccount(HexString.ensure("0x2111111111111111111111111111111
 console.log("Alice Address: "+alice.address())
 console.log("Bob Address: "+bob.address())
 
-const pid ="0xec015e1b499cf9302b07a040857e32cc9afc8c346819027b0ba4bd0b3dd55c12"
+const pid ="0xded9e977cba96693ed36492482490cd8abf7738f9210b2b74a26b5a5d43d9011"
 
 function makeid(length) {
   var result           = '';
@@ -43,20 +43,22 @@ const delay = (delayInms) => {
   return new Promise(resolve => setTimeout(resolve, delayInms));
 }
 
-const to_buf = (account:Uint8Array,amount:number): Buffer=>{ 
+const to_buf = (account: Uint8Array, amount: number, price: number): Buffer => {
   return Buffer.concat([
     account,
     new u64(amount).toArrayLike(Buffer, "le", 8),
+    new u64(price).toArrayLike(Buffer, "le", 8),
   ]);
-}
+};
+
 describe("whitelist", () => {
   let whitelistAddresses = [
-    to_buf(alice.address().toUint8Array(),2),
+    to_buf(alice.address().toUint8Array(),2,2),
   ];
   for(let i=0;i<200;i++){
-    whitelistAddresses.push(to_buf(new AptosAccount().address().toUint8Array(),1))
+    whitelistAddresses.push(to_buf(new AptosAccount().address().toUint8Array(),1,2))
   }
-  whitelistAddresses.push(to_buf(alice.address().toUint8Array(),1))
+  whitelistAddresses.push(to_buf(alice.address().toUint8Array(),1,2))
   let leafNodes = whitelistAddresses.map((address) => keccak256(address));
   let rt;
   if (leafNodes[0] <= leafNodes[1])
@@ -106,7 +108,7 @@ describe("whitelist", () => {
           function: pid+"::candymachine::set_root",
           type_arguments: [],
           arguments: [
-            "0xbd4bfb6133416d44418c3baa02abb8d7ff9bee03fc05899596d7f84f1f4fe4a9",
+            "0x685702c09979858b3ea5141586468461a06f1db24b9f70ab02f26a85bc80bc20",
             tree.getRoot()
           ]
         };
@@ -128,7 +130,7 @@ describe("whitelist", () => {
           function: pid+"::candymachine::mint_from_merkle",
           type_arguments: [],
           arguments: [
-            "0xbd4bfb6133416d44418c3baa02abb8d7ff9bee03fc05899596d7f84f1f4fe4a9",
+            "0x685702c09979858b3ea5141586468461a06f1db24b9f70ab02f26a85bc80bc20",
             proofs,
             1
         ]

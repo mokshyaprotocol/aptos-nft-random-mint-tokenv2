@@ -309,10 +309,10 @@ module candymachinev2::candymachine {
         let candy_admin = resource_data.source;
         let mint_data = borrow_global_mut<MintData>(@candymachinev2);
 
-        // Proof contains the receiver address, appended with the mint limit for the user, ensuring that they can in fact mint
-        let leafvec = bcs::to_bytes(&receiver_addr);
-        vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
-        assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
+        // let leafvec = bcs::to_bytes(&receiver_addr);
+        // vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
+        // vector::append(&mut leafvec, bcs::to_bytes(&EINVALID_ROYALTY_DENOMINATOR));
+        // assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
 
         // No need to check limit if mint limit = 0, this means the minter can mint unlimited amount of tokens
         if (mint_limit != 0) {
@@ -333,6 +333,46 @@ module candymachinev2::candymachine {
         };
 
         mint(receiver, &creator, candy_admin, candy_obj, candy_data.presale_mint_price);
+    }
+
+    public entry fun mint_from_merkle_v2(
+        receiver: &signer,
+        candy_obj: address,
+        proof: vector<vector<u8>>,
+        mint_limit: u64,
+        mint_price: u64,
+    ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
+        let receiver_addr = signer::address_of(receiver);
+        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
+        // Proof contains the receiver address, appended with the mint limit and the mint price for the user, ensuring that they can in fact mint
+        let leafvec = bcs::to_bytes(&receiver_addr);
+        vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
+        vector::append(&mut leafvec, bcs::to_bytes(&mint_price));
+        assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
+        mint_from_merkle(receiver,candy_obj,proof,mint_limit)
+    }
+    
+    /// Same as mint_from_merkle but a batch amount
+    public entry fun mint_from_merkle_many_v2(
+        receiver: &signer,
+        candy_obj: address,
+        proof: vector<vector<u8>>,
+        mint_limit: u64,
+        amount: u64,
+        mint_price:u64
+    ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
+        let receiver_addr = signer::address_of(receiver);
+        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
+        // Proof contains the receiver address, appended with the mint limit and the mint price for the user, ensuring that they can in fact mint
+        let leafvec = bcs::to_bytes(&receiver_addr);
+        vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
+        vector::append(&mut leafvec, bcs::to_bytes(&mint_price));
+        assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
+        let i = 0;
+        while (i < amount) {
+            mint_from_merkle(receiver, candy_obj, proof, mint_limit);
+            i = i + 1
+        }
     }
 
     /// Same as mint_from_merkle but a batch amount
