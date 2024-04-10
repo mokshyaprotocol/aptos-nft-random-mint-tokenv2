@@ -294,16 +294,29 @@ module candymachinev2::candymachine {
         candy_obj: address,
         proof: vector<vector<u8>>,
         mint_limit: u64,
-    ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
-        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
+    ){
+    }
 
+    public entry fun mint_from_merkle_v2(
+        receiver: &signer,
+        candy_obj: address,
+        proof: vector<vector<u8>>,
+        mint_limit: u64,
+        mint_price: u64,
+    ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
+        let receiver_addr = signer::address_of(receiver);
+        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
+        // Proof contains the receiver address, appended with the mint limit and the mint price for the user, ensuring that they can in fact mint
+        let leafvec = bcs::to_bytes(&receiver_addr);
+        vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
+        vector::append(&mut leafvec, bcs::to_bytes(&mint_price));
+        assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
         // Check if it's presale mint time
         let now = aptos_framework::timestamp::now_seconds();
         let is_whitelist_mint = candy_data.presale_mint_time < now && now < candy_data.public_sale_mint_time;
         assert!(is_whitelist_mint, EWHITELIST_MINT_NOT_ENABLED);
 
         // Retrieve the minting info
-        let receiver_addr = signer::address_of(receiver);
         let resource_data = borrow_global<ResourceInfo>(candy_obj);
         let creator = account::create_signer_with_capability(&resource_data.resource_cap);
         let candy_admin = resource_data.source;
@@ -334,23 +347,6 @@ module candymachinev2::candymachine {
 
         mint(receiver, &creator, candy_admin, candy_obj, candy_data.presale_mint_price);
     }
-
-    public entry fun mint_from_merkle_v2(
-        receiver: &signer,
-        candy_obj: address,
-        proof: vector<vector<u8>>,
-        mint_limit: u64,
-        mint_price: u64,
-    ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
-        let receiver_addr = signer::address_of(receiver);
-        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
-        // Proof contains the receiver address, appended with the mint limit and the mint price for the user, ensuring that they can in fact mint
-        let leafvec = bcs::to_bytes(&receiver_addr);
-        vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
-        vector::append(&mut leafvec, bcs::to_bytes(&mint_price));
-        assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
-        mint_from_merkle(receiver,candy_obj,proof,mint_limit)
-    }
     
     /// Same as mint_from_merkle but a batch amount
     public entry fun mint_from_merkle_many_v2(
@@ -361,16 +357,9 @@ module candymachinev2::candymachine {
         amount: u64,
         mint_price:u64
     ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
-        let receiver_addr = signer::address_of(receiver);
-        let candy_data = borrow_global_mut<CandyMachine>(candy_obj);
-        // Proof contains the receiver address, appended with the mint limit and the mint price for the user, ensuring that they can in fact mint
-        let leafvec = bcs::to_bytes(&receiver_addr);
-        vector::append(&mut leafvec, bcs::to_bytes(&mint_limit));
-        vector::append(&mut leafvec, bcs::to_bytes(&mint_price));
-        assert!(merkle_proof::verify(proof, candy_data.merkle_root, aptos_hash::keccak256(leafvec)), EINVALID_PROOF);
         let i = 0;
         while (i < amount) {
-            mint_from_merkle(receiver, candy_obj, proof, mint_limit);
+            mint_from_merkle_v2(receiver, candy_obj, proof, mint_limit,mint_price);
             i = i + 1
         }
     }
@@ -382,7 +371,7 @@ module candymachinev2::candymachine {
         proof: vector<vector<u8>>,
         mint_limit: u64,
         amount: u64
-    ) acquires MintData, CandyMachine, ResourceInfo, Whitelist, PublicMinters {
+    ){
         let i = 0;
         while (i < amount) {
             mint_from_merkle(receiver, candy_obj, proof, mint_limit);
