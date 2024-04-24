@@ -345,7 +345,7 @@ module candymachinev2::candymachine {
             mint_data.total_apt = mint_data.total_apt + candy_data.presale_mint_price;
         };
 
-        mint(receiver, &creator, candy_admin, candy_obj, candy_data.presale_mint_price);
+        mint(receiver, &creator, candy_admin, candy_obj, mint_price);
     }
     
     /// Same as mint_from_merkle but a batch amount
