@@ -338,11 +338,11 @@ module candymachinev2::candymachine {
 
             // Add one to the count of minted, aborting if it goes over
             let minted_nft = bucket_table::borrow_mut(&mut whitelist_data.minters, receiver_addr);
-            assert!(*minted_nft != mint_limit, EMINT_LIMIT_EXCEEDED);
+            assert!(*minted_nft < mint_limit, EMINT_LIMIT_EXCEEDED);
             *minted_nft = *minted_nft + 1;
 
             // Track the total APT
-            mint_data.total_apt = mint_data.total_apt + candy_data.presale_mint_price;
+            mint_data.total_apt = mint_data.total_apt + mint_price;
         };
 
         mint(receiver, &creator, candy_admin, candy_obj, mint_price);
